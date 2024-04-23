@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mole Image Analysis</title>
+    <style>
+        #container {
+            display: flex;
+        }
+        canvas {
+            border: 1px solid black;
+            margin: 10px;
+        }
+    </style>
+    <script async src="opencv.js" onload="onOpenCVLoaded()"></script>
+</head>
+<body>
+    <h1>Mole Image Analysis</h1>
+    <input type="file" accept="image/*" onchange="handleFile(this.files)">
+    <div id="container">
+        <canvas id="originalCanvas" width="400" height="400"></canvas>
+        <canvas id="outputCanvas" width="400" height="400"></canvas>
+    </div>
+
+    <script>
+        let cv;
+        
+        async function onOpenCVLoaded() {
+            cv = await cv();
+        }
+
+        function handleFile(files) {
+            const file = files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        analyzeMole(img);
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function analyzeMole(img) {
+            const src = cv.imread(img);
+            const gray = new cv.Mat();
+            const contours = new cv.MatVector();
+            const hierarchy = new cv.Mat();
+
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+            cv.threshold(gray, gray, 100, 255, cv.THRESH_BINARY);
+
+            cv.findContours(gray, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+            const originalCanvas = document.getElementById('originalCanvas');
+            const outputCanvas = document.getElementById('outputCanvas');
+            const ctxOriginal = originalCanvas.getContext('2d');
+            const ctxOutput = outputCanvas.getContext('2d');
+
+            originalCanvas.width = img.width;
+            originalCanvas.height = img.height;
+            outputCanvas.width = img.width;
+            outputCanvas.height = img.height;
+
+            ctxOriginal.drawImage(img, 0, 0, img.width, img.height);
+
+            for (let i = 0; i < contours.size(); ++i) {
+                const color = new cv.Scalar(255, 0, 0, 255);
+                const contour = contours.get(i);
+                const area = cv.contourArea(contour);
+                const perimeter = cv.arcLength(contour, true);
+
+                // Perform analysis here
+
+                const rect = cv.boundingRect(contour);
+                cv.rectangle(src, rect, color, 2);
+            }
+
+            cv.imshow('outputCanvas', src);
+            src.delete(); gray.delete(); contours.delete(); hierarchy.delete();
+        }
+    </script>
+</body>
+</html>
